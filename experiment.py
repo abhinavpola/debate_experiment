@@ -6,7 +6,7 @@ from collections import defaultdict
 from tqdm import tqdm
 import random
 import time
-import logging
+import csv
 
 
 # define a retry decorator
@@ -57,6 +57,7 @@ def retry_with_exponential_backoff(
 load_dotenv()
 client = openai.OpenAI()
 
+
 @dataclasses.dataclass
 class Agent:
     system_prompt: str
@@ -68,11 +69,14 @@ class Agent:
 def generate_message(
     conversation: list[str], agent: Agent, voting_prompt: str = None
 ) -> str:
-    messages = [{"role": "system", "content": agent.system_prompt}] + [
-        {"role": "user", "content": message} for message in conversation
-    ]
     if voting_prompt:
-        messages.append({"role": "user", "content": voting_prompt})
+        messages = [{"role": "system", "content": voting_prompt}] + [
+            {"role": "user", "content": message} for message in conversation
+        ]
+    else:
+        messages = [{"role": "system", "content": agent.system_prompt}] + [
+            {"role": "user", "content": message} for message in conversation
+        ]
     response = client.chat.completions.create(
         model=agent.model,
         messages=messages,
@@ -81,8 +85,9 @@ def generate_message(
 
 
 def get_system_prompt(topic: str, stance: str, name: str) -> str:
-    return f"""You are {name} debating with Player 2 and Player 3 on a tri-party debate topic: \"{topic}\".
-    You are a proponent of {stance}.
+    return f"""You are {name}, debating with two other players on a tri-party debate topic: \"{topic}\".
+    You are a proponent of {stance}. Your argument should be in plaintext.
+    Do not say your own name like "{name}: ".
     """
 
 
@@ -93,9 +98,9 @@ def eval(args):
     args.voting_prompt = get_generic_voting_prompt(stances)
 
     for i, stance in tqdm(enumerate(stances)):
-        logging.debug("=" * 100)
-        logging.debug(f"Running experiment {i} with topic: {tri_party_debate_topic}")
-        logging.debug("-" * 100)
+        print("=" * 100)
+        print(f"Running experiment {i} with topic: {tri_party_debate_topic}")
+        print("-" * 100)
         # Agent 1 (weak model) gets to be each stance at least once
         agent1 = Agent(
             name=names[0],
@@ -120,17 +125,17 @@ def eval(args):
 
         agent_list = [agent1, agent2, agent3]
 
-        logging.debug(f"Player 1 ({agent1.model}) stance: {stance}")
-        logging.debug(f"Player 2 ({agent2.model}) stance: {stances[(i + 1) % 3]}")
-        logging.debug(f"Player 3 ({agent3.model}) stance: {stances[(i + 2) % 3]}")
-        logging.debug("-" * 100)
+        print(f"Player 1 ({agent1.model}) stance: {stance}")
+        print(f"Player 2 ({agent2.model}) stance: {stances[(i + 1) % 3]}")
+        print(f"Player 3 ({agent3.model}) stance: {stances[(i + 2) % 3]}")
+        print("-" * 100)
         # Run the debate
         conversation = []
         for _ in range(args.num_rounds):
             for agent in agent_list:
                 conversation.append(message := generate_message(conversation, agent))
-                logging.debug(message)
-                logging.debug("-" * 100)
+                print(message)
+                print("-" * 100)
 
         # Get the vote
         votes = defaultdict(int)
@@ -140,30 +145,55 @@ def eval(args):
             votes[vote] += 1
             agent_to_vote[agent.name] = vote
 
-            logging.debug(f"{agent.name} voted for {vote}")
+            print(f"{agent.name} voted for {vote}")
 
-        logging.debug(f"Votes: {votes}")
-        # Check for tie by seeing if multiple items have the max vote count
+        print(f"Votes: {votes}")
+        # Check for tie by seeing if all items have the max vote count
         max_votes = max(votes.values())
-        winners = [k for k, v in votes.items() if v == max_votes]
-        if len(winners) > 1:
-            logging.debug(f"Tie between: {', '.join(winners)}")
+        if all(v == max_votes for v in votes.values()):
+            print(f"Tie between: {', '.join(votes.keys())}")
         else:
-            logging.debug(f"Winner: {winners[0]}")
-        logging.debug("=" * 100)
+            winners = [k for k, v in votes.items() if v == max_votes]
+            print(f"Winner: {winners[0]}")
+        print("=" * 100)
 
         # Save the conversation to a file
-        with open(args.transcript_file, "a") as f:
-            f.write(f"Debate {i + 1}:\n")
-            f.write("\n".join(conversation))
-            f.write("\n\n")
-            f.write(f"Votes: {votes}\n")
-            f.write(f"Agent to vote: {agent_to_vote}\n")
-            f.write(f"Winner: {max(votes, key=votes.get)}\n")
+        with open(args.transcript_file, "a", newline="") as f:
+            writer = csv.writer(f)
+            # Write headers if file is empty
+            if f.tell() == 0:
+                writer.writerow(
+                    [
+                        "Debate Number",
+                        "Topic",
+                        "Player 1 Stance",
+                        "Player 2 Stance",
+                        "Player 3 Stance",
+                        "Conversation",
+                        "Votes",
+                        "Agent Votes",
+                        "Winner",
+                    ]
+                )
+
+            writer.writerow(
+                [
+                    i + 1,
+                    tri_party_debate_topic,
+                    stance,
+                    stances[(i + 1) % 3],
+                    stances[(i + 2) % 3],
+                    "\n".join(conversation),
+                    str(dict(votes)),
+                    str(agent_to_vote),
+                    max(votes, key=votes.get),
+                ]
+            )
 
 
 def get_generic_voting_prompt(stances: list[str]) -> str:
-    return f"Please vote for one of the following options: {', '.join(stances)}. Do not output anything other than your vote."
+    return f"""You are given a transcript of a debate between three players. Please vote for one of the following options: {', '.join(stances)}. Do not output anything other than the option you voted for. Do not output a name like "Player: ".
+    """
 
 
 if __name__ == "__main__":
@@ -181,18 +211,10 @@ if __name__ == "__main__":
         nargs="+",
         default=None,
     )
-    parser.add_argument(
-        "--voting_prompt",
-        type=str,
-        default=None,
-    )
     parser.add_argument("--num_rounds", type=int, default=5)
-    parser.add_argument("--transcript_file", type=str, default="debate.txt")
+    parser.add_argument("--transcript_file", type=str, default="debate.csv")
     parser.add_argument("--eval_data_folder", type=str, default="results")
-    parser.add_argument("--debug", action="store_true")
     args = parser.parse_args()
-
-    logging.basicConfig(level=logging.DEBUG if args.debug else logging.INFO)
 
     # Multiple experiments
     if args.topic is None:
