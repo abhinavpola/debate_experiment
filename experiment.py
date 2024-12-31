@@ -69,19 +69,19 @@ class Agent:
 def generate_message(
     conversation: list[str], agent: Agent, voting_prompt: str = None
 ) -> str:
+    messages = [{"role": "system", "content": agent.system_prompt}] + [
+        {"role": "user", "content": message} for message in conversation
+    ]
     if voting_prompt:
-        messages = [{"role": "system", "content": voting_prompt}] + [
-            {"role": "user", "content": message} for message in conversation
-        ]
-    else:
-        messages = [{"role": "system", "content": agent.system_prompt}] + [
-            {"role": "user", "content": message} for message in conversation
-        ]
+        messages.append({"role": "user", "content": voting_prompt})
     response = client.chat.completions.create(
         model=agent.model,
         messages=messages,
     )
-    return f"{agent.name}: {response.choices[0].message.content}"
+    if voting_prompt:
+        return response.choices[0].message.content
+    else:
+        return f"{agent.name}: {response.choices[0].message.content}"
 
 
 def get_system_prompt(topic: str, stance: str, name: str) -> str:
@@ -91,11 +91,15 @@ def get_system_prompt(topic: str, stance: str, name: str) -> str:
     """
 
 
+def get_generic_voting_prompt(stances: list[str]) -> str:
+    prompt = f"Please vote for one of the following options: {', '.join(stances)}. Do not output anything other than the option you voted for. Your vote is case-sensitive. Do not change the case or formatting of the option you voted for."
+    return prompt
+
+
 def eval(args):
     tri_party_debate_topic = args.topic
     stances = args.stances
     names = ["Player 1", "Player 2", "Player 3"]
-    args.voting_prompt = get_generic_voting_prompt(stances)
 
     for i, stance in tqdm(enumerate(stances)):
         print("=" * 100)
@@ -189,11 +193,6 @@ def eval(args):
                     max(votes, key=votes.get),
                 ]
             )
-
-
-def get_generic_voting_prompt(stances: list[str]) -> str:
-    return f"""You are given a transcript of a debate between three players. Please vote for one of the following options: {', '.join(stances)}. Do not output anything other than the option you voted for. Do not output a name like "Player: ".
-    """
 
 
 if __name__ == "__main__":
