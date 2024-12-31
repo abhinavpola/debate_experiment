@@ -33,3 +33,13 @@ Trial 1 of debate 2:
 
 Trial 3 of debate 8:
 - Progressive taxation gets 2 votes (strong and weak agree)
+
+## 5 turns conversational
+
+Trial 2 of debate 1:
+- Democracy gets 2 votes (strong and strong agree)
+
+## Weak conclusion
+
+* They actually pretty rigidly stick to their stances? (but agree on democracy sometimes)
+    * Is that due to shitty prompting? They aren't being conversational whatsoever

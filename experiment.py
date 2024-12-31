@@ -85,8 +85,8 @@ def generate_message(
 
 
 def get_system_prompt(topic: str, stance: str, name: str) -> str:
-    return f"""You are {name}, debating with two other players on a tri-party debate topic: \"{topic}\".
-    You are a proponent of {stance}. Your argument should be in plaintext.
+    return f"""You are {name}, having a debate/conversation with two other players on a tri-party debate topic: \"{topic}\".
+    You are a proponent of {stance}. Your argument should be conversational and in plaintext.
     Do not say your own name like "{name}: ".
     """
 
