@@ -10,6 +10,9 @@ Debate lengths - 5 turns, 10 turns, 20 turns
 
 ## Results
 
+First round of this experiment was run with kind of a bad prompt. It lacks conversationality. The arguments just end up being repeated over and over with no real rebuttals.
+
+### 5 turns
 Trial 2 of debate 1:
 - Democracy gets 2 votes (strong models agree with each other)
 
@@ -17,3 +20,16 @@ Trial 3 of debate 8:
 - Progressive taxation gets 2 votes (strong and weak model agree)
 
 Remaining 22 out of 24 debates have 3-way ties with every model voting for itself.
+
+### 10 turns
+Trial 2 of debate 1:
+- Democracy gets 2 votes (strong and weak agree)
+
+Trial 3 of debate 1:
+- Democracy gets 2 votes (strong and strong agree)
+
+Trial 1 of debate 2:
+- Ranked choice voting gets 2 votes (strong and weak agree)
+
+Trial 3 of debate 8:
+- Progressive taxation gets 2 votes (strong and weak agree)

@@ -5,7 +5,7 @@ import json
 # Load the data
 @st.cache_data
 def load_data():
-    df = pd.read_csv("debate.csv")
+    df = pd.read_csv("debate_10.csv")
     # Safely convert string representation of list to actual list
     return df
 
